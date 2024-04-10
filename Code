@@ -1,0 +1,192 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define MAX_TITLE_LENGTH 100
+#define MAX_AUTHOR_LENGTH 100
+#define MAX_NAME_LENGTH 50
+#define MAX_SURNAME_LENGTH 50
+#define MAX_BORROWED_BOOKS 10
+#define MAX_LIBRARY_BOOKS 100
+
+// Define the struct for book
+struct book {
+    char title[MAX_TITLE_LENGTH];
+    char author[MAX_AUTHOR_LENGTH];
+    int copies_available;
+};
+
+// Define the struct for person
+struct person {
+    char name[MAX_NAME_LENGTH];
+    char surname[MAX_SURNAME_LENGTH];
+    struct book* borrowed_books[MAX_BORROWED_BOOKS];
+    int num_borrowed_books;
+};
+
+// Global variables for library
+struct book library[MAX_LIBRARY_BOOKS];
+int num_books_in_library = 0;
+
+// Function to borrow a book
+void borrow_book(struct person* p, struct book* b) {
+    if (b->copies_available > 0 && p->num_borrowed_books < MAX_BORROWED_BOOKS) {
+        p->borrowed_books[p->num_borrowed_books++] = b;
+        b->copies_available--;
+        printf("%s borrowed \"%s\" by %s\n", p->name, b->title, b->author);
+    }
+    else {
+        printf("Book \"%s\" is not available for borrowing.\n", b->title);
+    }
+}
+
+// Function to return a borrowed book
+void return_book(struct person* p, struct book* b) {
+    for (int i = 0; i < p->num_borrowed_books; ++i) {
+        if (p->borrowed_books[i] == b) {
+            p->borrowed_books[i] = p->borrowed_books[p->num_borrowed_books - 1];
+            p->num_borrowed_books--;
+            b->copies_available++;
+            printf("%s returned \"%s\" by %s\n", p->name, b->title, b->author);
+            return;
+        }
+    }
+    printf("%s didn't borrow \"%s\" by %s\n", p->name, b->title, b->author);
+}
+
+// Function to donate a new book to the library
+void donate_book(const char* title, const char* author, int copies) {
+    if (num_books_in_library < MAX_LIBRARY_BOOKS) {
+        struct book* new_book = &library[num_books_in_library++];
+        strcpy(new_book->title, title);
+        strcpy(new_book->author, author);
+        new_book->copies_available = copies;
+        printf("Book \"%s\" by %s donated to the library\n", title, author);
+    }
+    else {
+        printf("Library is full. Cannot donate book.\n");
+    }
+}
+
+// Function to view loans made by a person
+void view_loans(struct person* p) {
+    printf("Loans made by %s %s:\n", p->name, p->surname);
+    for (int i = 0; i < p->num_borrowed_books; ++i) {
+        struct book* b = p->borrowed_books[i];
+        printf("- \"%s\" by %s\n", b->title, b->author);
+    }
+    printf("\n");
+}
+
+// Function to search the library for a book by title or author
+void search_library(const char* query) {
+    printf("Search results for \"%s\":\n", query);
+    for (int i = 0; i < num_books_in_library; ++i) {
+        struct book* b = &library[i];
+        if (strstr(b->title, query) != NULL || strstr(b->author, query) != NULL) {
+            printf("- \"%s\" by %s\n", b->title, b->author);
+        }
+    }
+    printf("\n");
+}
+
+int main(int argc, char* argv[]) {
+    // Parse command line arguments for login
+    if (argc != 3) {
+        printf("Usage: %s login [NAME] [SURNAME]\n", argv[0]);
+        return 1;
+    }
+    struct person current_user;
+    strcpy(current_user.name, argv[1]);
+    strcpy(current_user.surname, argv[2]);
+    printf("Logged in as %s %s\n", current_user.name, current_user.surname);
+
+    // Menu loop
+    int choice;
+    while (true) {
+        printf("\nMenu:\n");
+        printf("1. Borrow Books\n");
+        printf("2. Return Books\n");
+        printf("3. Donate Books\n");
+        printf("4. View Loans\n");
+        printf("5. Search for Books\n");
+        printf("6. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        getchar(); // Clear newline character from input buffer
+
+        switch (choice) {
+        case 1: {
+            // Borrow books
+            printf("Enter book details to borrow (Title Author): ");
+            char title[MAX_TITLE_LENGTH], author[MAX_AUTHOR_LENGTH];
+            scanf("%99s %99s", title, author);
+            getchar(); // Clear newline character from input buffer
+
+            // Find the book in the library
+            struct book* book_to_borrow = NULL;
+            for (int i = 0; i < num_books_in_library; ++i) {
+                if (strcmp(library[i].title, title) == 0 && strcmp(library[i].author, author) == 0) {
+                    book_to_borrow = &library[i];
+                    break;
+                }
+            }
+
+            if (book_to_borrow != NULL) {
+                borrow_book(&current_user, book_to_borrow);
+            }
+            else {
+                printf("Book \"%s\" by %s not found in the library.\n", title, author);
+            }
+            break;
+        }
+        case 2: {
+            // Return books
+            printf("Enter book details to return (Title Author): ");
+            char title[MAX_TITLE_LENGTH], author[MAX_AUTHOR_LENGTH];
+            scanf("%99s %99s", title, author);
+            getchar(); // Clear newline character from input buffer
+
+            // Find the book in the borrowed books
+            struct book book_to_return;
+            strcpy(book_to_return.title, title);
+            strcpy(book_to_return.author, author);
+            return_book(&current_user, &book_to_return);
+            break;
+        }
+        case 3: {
+            // Donate books
+            printf("Enter book details to donate (Title Author Copies): ");
+            char title[MAX_TITLE_LENGTH], author[MAX_AUTHOR_LENGTH];
+            int copies;
+            scanf("%99s %99s %d", title, author, &copies);
+            getchar(); // Clear newline character from input buffer
+
+            donate_book(title, author, copies);
+            break;
+        }
+        case 4:
+            // View loans
+            view_loans(&current_user);
+            break;
+        case 5: {
+            // Search for books
+            printf("Enter search query (Title or Author): ");
+            char query[MAX_TITLE_LENGTH];
+            fgets(query, sizeof(query), stdin);
+            query[strcspn(query, "\n")] = 0; // Remove trailing newline character
+            search_library(query);
+            break;
+        }
+        case 6:
+            // Exit
+            printf("Goodbye!\n");
+            return 0;
+        default:
+            printf("Invalid choice. Please try again.\n");
+        }
+    }
+
+    return 0;
+}
